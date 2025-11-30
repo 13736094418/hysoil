@@ -21,6 +21,34 @@ h1 {
     color: #e74c3c;
 }
 
+/* 设备选择器样式 */
+.device-selector {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 20px 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.device-selector select, .device-selector button {
+    padding: 8px 12px;
+    margin: 0 5px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.device-selector button {
+    background: #3498db;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.device-selector button:hover {
+    background: #2980b9;
+}
+
 .data-container {
     display: flex;
     gap: 20px;
@@ -61,11 +89,32 @@ h1 {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    margin-top: 20px;
+}
+
+/* 数据流显示样式 */
+.datastream-item {
+    background: #f8f9fa;
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+}
+
+.datastream-name {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.datastream-value {
+    font-size: 1.5em;
+    color: #e74c3c;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
+    margin-top: 15px;
 }
 
 th, td {
@@ -83,7 +132,16 @@ tr:hover {
     background-color: #f5f5f5;
 }
 
-/* 响应式设计：在小屏幕上调整布局 */
+.status-connected {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.status-disconnected {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
 @media (max-width: 600px) {
     .data-container {
         flex-direction: column;
@@ -92,5 +150,14 @@ tr:hover {
     
     .data-card {
         width: 80%;
+    }
+    
+    .device-selector {
+        text-align: left;
+    }
+    
+    .device-selector select, .device-selector button {
+        width: 100%;
+        margin: 5px 0;
     }
 }
