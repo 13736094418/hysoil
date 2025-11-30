@@ -49,6 +49,8 @@ module.exports.handler = async (event, context) => {
             };
         }
 
+        console.log('正在请求设备数据:', device_id);
+
         // 构建请求URL
         const url = `https://api.heclouds.com/devices/${device_id}/datapoints?datastream_id=bat_tem,Hum&limit=10`;
 
@@ -78,6 +80,7 @@ module.exports.handler = async (event, context) => {
         }
 
         const data = await response.json();
+        console.log('获取数据成功:', data);
 
         // 返回成功响应
         return {
@@ -93,6 +96,7 @@ module.exports.handler = async (event, context) => {
         };
 
     } catch (error) {
+        console.error('函数执行错误:', error);
         return {
             statusCode: 500,
             headers: {
