@@ -4,7 +4,7 @@ const ONENET_CONFIG = {
     API_BASE_URL: 'http://api.heclouds.com',
     PRODUCT_ID: 'Xh8edeT6Gd',      // 替换为您的产品ID
     DEVICE_ID: 'hysoil',        // 替换为您的设备ID
-    API_KEY: 'ZUVQNjkyQ0ZkVWZTWEZ1R0JOZTdGR2dXbkVMSHVWUVo=',            // 替换为您的API Key
+    API_KEY: 'version=2018-10-31&res=products%2FXh8edeT6Gd%2Fdevices%2Fhysoil&et=1826875448&method=md5&sign=p5%2Fu6l07hsWh6hCRkjUX4A%3D%3D',            // 替换为您的API Key
     
     // 数据流名称（根据您的设备实际数据流名称修改）
     DATASTREAMS: {
