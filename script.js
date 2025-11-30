@@ -1,7 +1,7 @@
 // OneNET平台配置 - 需要您修改为实际的值
 const ONENET_CONFIG = {
     // 从OneNET控制台获取：产品ID、设备ID、API Key
-    API_BASE_URL: 'http://api.heclouds.com',
+    API_BASE_URL: 'https://api.heclouds.com',
     PRODUCT_ID: 'Xh8edeT6Gd',      // 替换为您的产品ID
     DEVICE_ID: 'hysoil',        // 替换为您的设备ID
     API_KEY: 'version=2018-10-31&res=products%2FXh8edeT6Gd%2Fdevices%2Fhysoil&et=1826875448&method=md5&sign=p5%2Fu6l07hsWh6hCRkjUX4A%3D%3D',            // 替换为您的API Key
