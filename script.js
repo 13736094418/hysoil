@@ -1,447 +1,356 @@
-// OneNET平台配置 - 请修改为您的实际信息
-const ONENET_CONFIG = {
-    API_BASE_URL: 'https://api.heclouds.com',
-    PRODUCT_ID: 'Xh8edeT6Gd',           // 您的产品ID
-    DEVICE_ID: 'hysoil',        // 替换为真实设备ID  
-    API_KEY: 'version=2018-10-31&res=products%2FXh8edeT6Gd%2Fdevices%2Fhysoil&et=1826875448&method=md5&sign=p5%2Fu6l07hsWh6hCRkjUX4A%3D%3D',            // 替换为真实API Key
-    DATASTREAMS: {
-        TEMPERATURE: 'bat_tem',         // 温度数据流名称
-        HUMIDITY: 'Hum'                 // 湿度数据流名称
+class WeatherMonitor {
+    constructor() {
+        this.currentDeviceId = '';
+        this.autoRefreshInterval = null;
+        this.isConnected = false;
+        this.lastData = null;
+        
+        this.initializeElements();
+        this.bindEvents();
+        this.loadDeviceList();
+        this.updateFooterTime();
     }
-};
 
-// 代理配置 - 解决CORS问题
-const PROXY_CONFIG = {
-    ENABLED: true,
-    // 可选的代理服务列表（按优先级排序）
-    PROXY_SERVICES: [
-        'https://cors-anywhere.herokuapp.com/',
-        'https://api.codetabs.com/v1/proxy?quest=',
-        'https://corsproxy.io/?',
-        'https://proxy.cors.sh/'
-    ],
-    currentProxyIndex: 0
-};
+    initializeElements() {
+        // 控制元素
+        this.deviceSelector = document.getElementById('device-selector');
+        this.refreshBtn = document.getElementById('refresh-btn');
+        this.autoRefreshBtn = document.getElementById('auto-refresh-btn');
+        this.stopRefreshBtn = document.getElementById('stop-refresh-btn');
+        this.debugBtn = document.getElementById('debug-btn');
+        
+        // 显示元素
+        this.updateTimeElement = document.getElementById('update-time');
+        this.connectionStatusElement = document.getElementById('connection-status');
+        this.temperatureValue = document.getElementById('temperature-value');
+        this.humidityValue = document.getElementById('humidity-value');
+        this.temperatureTrend = document.getElementById('temperature-trend');
+        this.humidityTrend = document.getElementById('humidity-trend');
+        this.debugOutput = document.getElementById('debug-output');
+        this.streamsList = document.getElementById('streams-list');
+        this.footerTime = document.getElementById('footer-time');
+    }
 
-// 全局变量
-let refreshInterval;
+    bindEvents() {
+        this.deviceSelector.addEventListener('change', (e) => {
+            this.currentDeviceId = e.target.value;
+            if (this.currentDeviceId) {
+                this.fetchDeviceData();
+            }
+        });
 
-// 1. 代理请求函数
-async function fetchWithProxy(url, options = {}) {
-    const maxRetries = PROXY_CONFIG.PROXY_SERVICES.length;
-    
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const proxyUrl = PROXY_CONFIG.PROXY_SERVICES[attempt] + url;
-        console.log(`尝试代理 ${attempt + 1}/${maxRetries}: ${proxyUrl}`);
+        this.refreshBtn.addEventListener('click', () => {
+            this.loadDeviceList();
+            if (this.currentDeviceId) {
+                this.fetchDeviceData();
+            }
+        });
+
+        this.autoRefreshBtn.addEventListener('click', () => {
+            this.startAutoRefresh();
+        });
+
+        this.stopRefreshBtn.addEventListener('click', () => {
+            this.stopAutoRefresh();
+        });
+
+        this.debugBtn.addEventListener('click', () => {
+            this.diagnoseConnection();
+        });
+
+        // 每10分钟自动刷新一次设备列表
+        setInterval(() => {
+            this.loadDeviceList();
+        }, 10 * 60 * 1000);
+    }
+
+    async loadDeviceList() {
+        try {
+            this.debugLog('正在加载设备列表...');
+            
+            // 这里应该是从API获取设备列表的逻辑
+            // 暂时使用模拟数据
+            const mockDevices = [
+                { id: 'device_001', name: '实验室温湿度传感器' },
+                { id: 'device_002', name: '办公室环境监测' }
+            ];
+            
+            this.populateDeviceSelector(mockDevices);
+            this.debugLog('设备列表加载完成');
+            
+        } catch (error) {
+            this.debugLog(`加载设备列表失败: ${error.message}`);
+        }
+    }
+
+    populateDeviceSelector(devices) {
+        // 保存当前选中的设备
+        const currentSelection = this.deviceSelector.value;
+        
+        // 清空选项（保留第一个提示选项）
+        while (this.deviceSelector.options.length > 1) {
+            this.deviceSelector.remove(1);
+        }
+        
+        // 添加设备选项
+        devices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.id;
+            option.textContent = device.name;
+            this.deviceSelector.appendChild(option);
+        });
+        
+        // 恢复之前的选中状态
+        if (currentSelection) {
+            this.deviceSelector.value = currentSelection;
+        }
+    }
+
+    async fetchDeviceData() {
+        if (!this.currentDeviceId) {
+            this.debugLog('请先选择设备');
+            return;
+        }
+
+        try {
+            this.setLoadingState(true);
+            this.debugLog(`正在获取设备 ${this.currentDeviceId} 的数据...`);
+
+            const response = await fetch(`/api/onenet-proxy?device_id=${this.currentDeviceId}&limit=20`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || `HTTP ${response.status}`);
+            }
+
+            if (result.success) {
+                this.handleDataSuccess(result.data);
+            } else {
+                throw new Error(result.error || '未知错误');
+            }
+
+        } catch (error) {
+            this.handleDataError(error);
+        } finally {
+            this.setLoadingState(false);
+        }
+    }
+
+    handleDataSuccess(data) {
+        this.isConnected = true;
+        this.lastData = data;
+        
+        this.updateConnectionStatus();
+        this.updateSensorDisplay(data);
+        this.updateDataStreams(data);
+        this.updateTimestamp();
+        
+        this.debugLog('数据获取成功 ✓');
+    }
+
+    handleDataError(error) {
+        this.isConnected = false;
+        this.updateConnectionStatus();
+        
+        this.debugLog(`数据获取失败: ${error.message}`);
+        
+        // 显示错误状态
+        this.temperatureValue.textContent = '--';
+        this.humidityValue.textContent = '--';
+        this.temperatureValue.style.color = '#f56565';
+        this.humidityValue.style.color = '#f56565';
+        
+        setTimeout(() => {
+            this.temperatureValue.style.color = '';
+            this.humidityValue.style.color = '';
+        }, 2000);
+    }
+
+    updateSensorDisplay(data) {
+        if (!data.data || !data.data.datastreams) {
+            this.debugLog('数据格式错误: 缺少 datastreams');
+            return;
+        }
+
+        const streams = data.data.datastreams;
+        
+        // 查找温度数据流
+        const tempStream = streams.find(ds => ds.id === 'bat_tem');
+        if (tempStream && tempStream.datapoints && tempStream.datapoints.length > 0) {
+            const latestTemp = tempStream.datapoints[0].value;
+            this.temperatureValue.textContent = latestTemp;
+            this.updateTrend(this.temperatureTrend, tempStream.datapoints);
+        } else {
+            this.temperatureValue.textContent = '--';
+            this.debugLog('未找到温度数据流 bat_tem');
+        }
+
+        // 查找湿度数据流
+        const humStream = streams.find(ds => ds.id === 'Hum');
+        if (humStream && humStream.datapoints && humStream.datapoints.length > 0) {
+            const latestHum = humStream.datapoints[0].value;
+            this.humidityValue.textContent = latestHum;
+            this.updateTrend(this.humidityTrend, humStream.datapoints);
+        } else {
+            this.humidityValue.textContent = '--';
+            this.debugLog('未找到湿度数据流 Hum');
+        }
+    }
+
+    updateTrend(trendElement, datapoints) {
+        if (datapoints.length < 2) {
+            trendElement.textContent = '→ 持平';
+            trendElement.style.color = '#a0aec0';
+            return;
+        }
+
+        const currentValue = parseFloat(datapoints[0].value);
+        const previousValue = parseFloat(datapoints[1].value);
+        const difference = currentValue - previousValue;
+
+        if (Math.abs(difference) < 0.1) {
+            trendElement.textContent = '→ 持平';
+            trendElement.style.color = '#a0aec0';
+        } else if (difference > 0) {
+            trendElement.textContent = `↗ +${difference.toFixed(1)}`;
+            trendElement.style.color = '#f56565';
+        } else {
+            trendElement.textContent = `↘ ${difference.toFixed(1)}`;
+            trendElement.style.color = '#48bb78';
+        }
+    }
+
+    updateDataStreams(data) {
+        if (!data.data || !data.data.datastreams) return;
+
+        const streams = data.data.datastreams;
+        this.streamsList.innerHTML = '';
+
+        streams.forEach(stream => {
+            const streamElement = document.createElement('div');
+            streamElement.className = 'stream-item';
+            
+            let streamContent = `
+                <div class="stream-header">📊 ${stream.id} (${stream.datapoints?.length || 0} 个数据点)</div>
+            `;
+
+            if (stream.datapoints && stream.datapoints.length > 0) {
+                stream.datapoints.slice(0, 5).forEach((point, index) => {
+                    const time = new Date(point.at).toLocaleString();
+                    streamContent += `
+                        <div class="data-point">
+                            <span>${time}</span>
+                            <span><strong>${point.value}</strong></span>
+                        </div>
+                    `;
+                });
+                
+                if (stream.datapoints.length > 5) {
+                    streamContent += `<div style="text-align: center; color: #718096;">... 还有 ${stream.datapoints.length - 5} 个数据点</div>`;
+                }
+            } else {
+                streamContent += `<div style="color: #718096;">暂无数据</div>`;
+            }
+
+            streamElement.innerHTML = streamContent;
+            this.streamsList.appendChild(streamElement);
+        });
+    }
+
+    updateConnectionStatus() {
+        if (this.isConnected) {
+            this.connectionStatusElement.textContent = '🟢 已连接';
+            this.connectionStatusElement.className = 'connection-status connected';
+        } else {
+            this.connectionStatusElement.textContent = '🔴 未连接';
+            this.connectionStatusElement.className = 'connection-status disconnected';
+        }
+    }
+
+    updateTimestamp() {
+        const now = new Date();
+        this.updateTimeElement.textContent = now.toLocaleString();
+    }
+
+    updateFooterTime() {
+        const now = new Date();
+        this.footerTime.textContent = now.toLocaleDateString();
+        
+        // 每天更新一次
+        setInterval(() => {
+            const newDate = new Date();
+            this.footerTime.textContent = newDate.toLocaleDateString();
+        }, 24 * 60 * 60 * 1000);
+    }
+
+    startAutoRefresh() {
+        if (this.autoRefreshInterval) {
+            this.stopAutoRefresh();
+        }
+
+        if (!this.currentDeviceId) {
+            this.debugLog('请先选择设备');
+            return;
+        }
+
+        this.autoRefreshInterval = setInterval(() => {
+            this.fetchDeviceData();
+        }, 10000); // 10秒
+
+        this.autoRefreshBtn.disabled = true;
+        this.stopRefreshBtn.disabled = false;
+        this.debugLog('已开启自动刷新 (10秒间隔)');
+    }
+
+    stopAutoRefresh() {
+        if (this.autoRefreshInterval) {
+            clearInterval(this.autoRefreshInterval);
+            this.autoRefreshInterval = null;
+        }
+
+        this.autoRefreshBtn.disabled = false;
+        this.stopRefreshBtn.disabled = true;
+        this.debugLog('已停止自动刷新');
+    }
+
+    setLoadingState(isLoading) {
+        const elements = [this.refreshBtn, this.deviceSelector];
+        
+        elements.forEach(element => {
+            if (isLoading) {
+                element.classList.add('loading');
+                element.disabled = true;
+            } else {
+                element.classList.remove('loading');
+                element.disabled = false;
+            }
+        });
+    }
+
+    async diagnoseConnection() {
+        this.debugOutput.innerHTML = '=== 开始诊断连接问题 ===\n';
         
         try {
-            const response = await fetch(proxyUrl, {
-                ...options,
-                headers: {
-                    ...options.headers,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
+            this.debugLog('1. 测试环境变量配置...');
+            const testResponse = await fetch('/api/test-connection');
+            const testResult = await testResponse.json();
             
-            if (response.ok) {
-                console.log(`✓ 代理 ${attempt + 1} 成功`);
-                PROXY_CONFIG.currentProxyIndex = attempt;
-                return response;
+            this.debugLog(`   环境变量状态: ${testResult.environment.apiKeyExists ? '✓ 已配置' : '✗ 未配置'}`);
+            this.debugLog(`   API Key长度: ${testResult.environment.apiKeyLength}`);
+            
+            if (this.currentDeviceId) {
+                this.debugLog('2. 测试设备数据获取...');
+                await this.fetchDeviceData();
             } else {
-                console.warn(`代理 ${attempt + 1} 返回错误: ${response.status}`);
+                this.debugLog('2. 跳过设备测试: 未选择设备');
             }
+            
+            this.debugLog('=== 诊断完成 ===');
         } catch (error) {
-            console.warn(`代理 ${attempt + 1} 失败: ${error.message}`);
-        }
-        
-        // 如果不是最后一次尝试，等待一下再重试
-        if (attempt < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            this.debugLog(`诊断失败: ${error.message}`);
         }
     }
-    
-    // 所有代理都失败，尝试直接请求（可能会因CORS失败）
-    console.log('所有代理失败，尝试直接请求...');
-    try {
-        return await fetch(url, options);
-    } catch (error) {
-        throw new Error(`所有请求方式都失败: ${error.message}`);
-    }
-}
 
-// 2. 获取设备列表
-async function fetchDeviceList() {
-    console.log('开始获取设备列表...');
-    
-    const deviceSelect = document.getElementById('deviceSelect');
-    if (!deviceSelect) {
-        console.error('错误: 未找到设备选择元素');
-        return;
-    }
-    
-    try {
-        deviceSelect.classList.add('loading');
-        
-        const url = `${ONENET_CONFIG.API_BASE_URL}/devices?product_id=${ONENET_CONFIG.PRODUCT_ID}`;
-        console.log('请求URL:', url);
-        
-        const response = await fetchWithProxy(url, {
-            headers: {
-                'api-key': ONENET_CONFIG.API_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        console.log('响应状态:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP错误! 状态: ${response.status}, 详情: ${errorText}`);
-        }
-        
-        const data = await response.json();
-        console.log('API响应数据:', data);
-        
-        // 清空设备列表
-        deviceSelect.innerHTML = '<option value="">请选择设备</option>';
-        
-        if (data.errno === 0 && data.data && data.data.devices) {
-            data.data.devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.id;
-                option.textContent = `${device.title} (${device.id})`;
-                if (device.id === ONENET_CONFIG.DEVICE_ID) {
-                    option.selected = true;
-                }
-                deviceSelect.appendChild(option);
-            });
-            console.log(`成功获取 ${data.data.devices.length} 个设备`);
-            
-            // 如果有默认设备，自动选择
-            if (ONENET_CONFIG.DEVICE_ID && ONENET_CONFIG.DEVICE_ID !== 'YOUR_DEVICE_ID') {
-                deviceSelect.value = ONENET_CONFIG.DEVICE_ID;
-                fetchLatestData(ONENET_CONFIG.DEVICE_ID);
-                fetchDatastreams(ONENET_CONFIG.DEVICE_ID);
-            }
-        } else {
-            console.warn('设备数据格式异常:', data);
-            alert(`API返回异常: ${data.error}`);
-        }
-        
-    } catch (error) {
-        console.error('获取设备列表失败:', error);
-        alert('获取设备列表失败: ' + error.message);
-    } finally {
-        deviceSelect.classList.remove('loading');
-    }
-}
-
-// 3. 获取设备最新数据
-async function fetchLatestData(deviceId = ONENET_CONFIG.DEVICE_ID) {
-    if (!deviceId || deviceId === 'YOUR_DEVICE_ID') {
-        console.log('未选择有效设备，跳过数据获取');
-        return;
-    }
-    
-    try {
-        console.log(`获取设备 ${deviceId} 的最新数据...`);
-        
-        const url = `${ONENET_CONFIG.API_BASE_URL}/devices/${deviceId}`;
-        const response = await fetchWithProxy(url, {
-            headers: {
-                'api-key': ONENET_CONFIG.API_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP错误! 状态: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.errno === 0) {
-            updateDeviceDisplay(data.data);
-        } else {
-            throw new Error(`API错误: ${data.error}`);
-        }
-        
-    } catch (error) {
-        console.error('获取设备数据失败:', error);
-    }
-}
-
-// 4. 获取设备数据流详情
-async function fetchDatastreams(deviceId = ONENET_CONFIG.DEVICE_ID) {
-    if (!deviceId || deviceId === 'YOUR_DEVICE_ID') return;
-    
-    try {
-        const url = `${ONENET_CONFIG.API_BASE_URL}/devices/${deviceId}/datastreams`;
-        const response = await fetchWithProxy(url, {
-            headers: {
-                'api-key': ONENET_CONFIG.API_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.errno === 0) {
-                updateDatastreamsDisplay(data.data.datastreams);
-            }
-        }
-    } catch (error) {
-        console.error('获取数据流失败:', error);
-    }
-}
-
-// 5. 获取数据点历史
-async function fetchDataPoints(deviceId = ONENET_CONFIG.DEVICE_ID, datastreamId, limit = 10) {
-    if (!deviceId || !datastreamId) return;
-    
-    try {
-        const url = `${ONENET_CONFIG.API_BASE_URL}/devices/${deviceId}/datapoints?datastream_id=${datastreamId}&limit=${limit}`;
-        const response = await fetchWithProxy(url, {
-            headers: {
-                'api-key': ONENET_CONFIG.API_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            return data.data;
-        }
-    } catch (error) {
-        console.error(`获取数据点失败 ${datastreamId}:`, error);
-    }
-    return null;
-}
-
-// 6. 更新设备数据显示
-function updateDeviceDisplay(device) {
-    const temperatureElement = document.getElementById('temperatureValue');
-    const humidityElement = document.getElementById('humidityValue');
-    const lastUpdateElement = document.getElementById('lastUpdate');
-    
-    if (!temperatureElement || !humidityElement || !lastUpdateElement) {
-        console.error('错误: 未找到显示元素');
-        return;
-    }
-    
-    // 查找温度和湿度数据
-    let temperature = '--';
-    let humidity = '--';
-    
-    if (device.datastreams) {
-        device.datastreams.forEach(ds => {
-            if (ds.id === ONENET_CONFIG.DATASTREAMS.TEMPERATURE && ds.current_value !== undefined) {
-                temperature = parseFloat(ds.current_value).toFixed(1);
-            }
-            if (ds.id === ONENET_CONFIG.DATASTREAMS.HUMIDITY && ds.current_value !== undefined) {
-                humidity = parseFloat(ds.current_value).toFixed(1);
-            }
-        });
-    }
-    
-    // 更新显示
-    temperatureElement.textContent = temperature;
-    humidityElement.textContent = humidity;
-    
-    const statusText = device.online ? 
-        `<span class="status-connected">在线</span>` : 
-        `<span class="status-disconnected">离线</span>`;
-    
-    lastUpdateElement.innerHTML = `设备: ${device.title} | 状态: ${statusText} | 更新时间: ${new Date().toLocaleString('zh-CN')}`;
-}
-
-// 7. 更新数据流显示
-function updateDatastreamsDisplay(datastreams) {
-    const datastreamsContainer = document.getElementById('datastreams');
-    if (!datastreamsContainer) return;
-    
-    datastreamsContainer.innerHTML = '';
-    
-    // 清空历史表格
-    const tableBody = document.querySelector('#dataTable tbody');
-    if (tableBody) tableBody.innerHTML = '';
-    
-    datastreams.forEach(ds => {
-        const datastreamElement = document.createElement('div');
-        datastreamElement.className = 'datastream-item';
-        datastreamElement.innerHTML = `
-            <div>
-                <span class="datastream-name">${ds.id}</span>
-                <div class="datastream-time">更新时间: ${ds.update_at ? new Date(ds.update_at).toLocaleString('zh-CN') : '未知'}</div>
-            </div>
-            <div class="datastream-value">${ds.current_value !== undefined ? ds.current_value : '无数据'}</div>
-        `;
-        datastreamsContainer.appendChild(datastreamElement);
-        
-        // 为温度和湿度数据流获取历史数据
-        if (ds.id === ONENET_CONFIG.DATASTREAMS.TEMPERATURE || ds.id === ONENET_CONFIG.DATASTREAMS.HUMIDITY) {
-            fetchDataPoints(ONENET_CONFIG.DEVICE_ID, ds.id).then(dataPoints => {
-                if (dataPoints && dataPoints.datapoints) {
-                    updateHistoryTable(dataPoints, ds.id);
-                }
-            });
-        }
-    });
-}
-
-// 8. 更新历史数据表格
-function updateHistoryTable(dataPoints, datastreamId) {
-    if (!dataPoints || !dataPoints.datapoints) return;
-    
-    const tableBody = document.querySelector('#dataTable tbody');
-    if (!tableBody) return;
-    
-    dataPoints.datapoints.forEach(dp => {
-        const row = document.createElement('tr');
-        
-        const timeCell = document.createElement('td');
-        timeCell.textContent = new Date(dp.at).toLocaleString('zh-CN');
-        
-        const streamCell = document.createElement('td');
-        streamCell.textContent = datastreamId;
-        
-        const valueCell = document.createElement('td');
-        valueCell.textContent = dp.value;
-        
-        row.appendChild(timeCell);
-        row.appendChild(streamCell);
-        row.appendChild(valueCell);
-        
-        tableBody.appendChild(row);
-    });
-}
-
-// 9. 自动刷新功能
-window.startAutoRefresh = function(interval = 10000) {
-    stopAutoRefresh();
-    console.log(`开始自动刷新，间隔: ${interval}ms`);
-    refreshInterval = setInterval(() => {
-        const deviceSelect = document.getElementById('deviceSelect');
-        if (deviceSelect && deviceSelect.value) {
-            fetchLatestData(deviceSelect.value);
-            fetchDatastreams(deviceSelect.value);
-        }
-    }, interval);
-    alert(`已开启自动刷新，间隔: ${interval/1000}秒`);
-}
-
-window.stopAutoRefresh = function() {
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
-        console.log('停止自动刷新');
-        alert('已停止自动刷新');
-    }
-}
-
-// 10. 诊断函数
-window.runDiagnosis = async function() {
-    const output = document.getElementById('debug-output');
-    output.innerHTML = '=== 开始诊断连接问题（使用代理）===\n';
-    
-    try {
-        // 测试1: 检查配置
-        output.innerHTML += '1. 检查配置...\n';
-        output.innerHTML += `   产品ID: ${ONENET_CONFIG.PRODUCT_ID}\n`;
-        output.innerHTML += `   API Key长度: ${ONENET_CONFIG.API_KEY.length}\n`;
-        output.innerHTML += `   温度数据流: ${ONENET_CONFIG.DATASTREAMS.TEMPERATURE}\n`;
-        output.innerHTML += `   湿度数据流: ${ONENET_CONFIG.DATASTREAMS.HUMIDITY}\n`;
-        
-        // 测试2: 测试网络
-        output.innerHTML += '2. 测试网络连接...\n';
-        const testNet = await fetch('https://httpbin.org/get');
-        output.innerHTML += '   ✓ 网络连接正常\n';
-        
-        // 测试3: 测试代理服务
-        output.innerHTML += '3. 测试代理服务...\n';
-        const proxyTestUrl = 'https://cors-anywhere.herokuapp.com/https://httpbin.org/get';
-        const proxyTest = await fetch(proxyTestUrl);
-        output.innerHTML += '   ✓ 代理服务正常\n';
-        
-        // 测试4: 通过代理测试OneNET API
-        output.innerHTML += '4. 通过代理测试OneNET API...\n';
-        const url = `${ONENET_CONFIG.API_BASE_URL}/devices?product_id=${ONENET_CONFIG.PRODUCT_ID}`;
-        output.innerHTML += `   原始URL: ${url}\n`;
-        
-        const response = await fetchWithProxy(url, {
-            headers: { 
-                'api-key': ONENET_CONFIG.API_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        output.innerHTML += `   响应状态: ${response.status} ${response.statusText}\n`;
-        
-        if (response.ok) {
-            const data = await response.json();
-            output.innerHTML += '   ✓ API请求成功！\n';
-            output.innerHTML += `   错误码: ${data.errno}\n`;
-            output.innerHTML += `   错误信息: ${data.error}\n`;
-            
-            if (data.data && data.data.devices) {
-                output.innerHTML += `   找到设备数量: ${data.data.devices.length}\n`;
-                data.data.devices.forEach((device, index) => {
-                    output.innerHTML += `     设备${index + 1}: ${device.title} (${device.id})\n`;
-                });
-            }
-        } else {
-            const errorText = await response.text();
-            output.innerHTML += `   ✗ API错误: ${errorText}\n`;
-        }
-        
-    } catch (error) {
-        output.innerHTML += `   ✗ 错误详情: ${error.message}\n`;
-        output.innerHTML += `   错误类型: ${error.name}\n`;
-        
-        // 提供备用方案
-        output.innerHTML += '\n5. 备用方案建议:\n';
-        output.innerHTML += '   - 方案A: 尝试其他代理服务\n';
-        output.innerHTML += '   - 方案B: 检查API Key权限\n';
-        output.innerHTML += '   - 方案C: 验证产品ID和设备ID\n';
-    }
-    
-    output.innerHTML += '=== 诊断完成 ===\n';
-};
-
-// 11. 页面加载初始化
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== 页面初始化开始 ===');
-    console.log('温度数据流名称:', ONENET_CONFIG.DATASTREAMS.TEMPERATURE);
-    console.log('湿度数据流名称:', ONENET_CONFIG.DATASTREAMS.HUMIDITY);
-    console.log('当前使用代理:', PROXY_CONFIG.PROXY_SERVICES[PROXY_CONFIG.currentProxyIndex]);
-    
-    // 安全地添加事件监听器
-    const deviceSelect = document.getElementById('deviceSelect');
-    if (deviceSelect) {
-        deviceSelect.addEventListener('change', function() {
-            console.log('设备选择变化:', this.value);
-            const deviceId = this.value;
-            if (deviceId) {
-                fetchLatestData(deviceId);
-                fetchDatastreams(deviceId);
-                startAutoRefresh(10000);
-            } else {
-                stopAutoRefresh();
-            }
-        });
-    }
-    
-    // 初始化数据
-    if (ONENET_CONFIG.PRODUCT_ID && ONENET_CONFIG.PRODUCT_ID !== 'YOUR_PRODUCT_ID') {
-        fetchDeviceList();
-    }
-    
-    console.log('=== 页面初始化完成 ===');
-});
-
-// 12. 手动测试函数
-window.testConnection = function() {
-    console.log('=== 手动测试连接 ===');
-    console.log('当前配置:', ONENET_CONFIG);
-    console.log('代理配置:', PROXY_CONFIG);
-    fetchDeviceList();
-};
+    debugLog(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        this
