@@ -3,17 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>温湿度监控平台</title>
-    <!-- 引入Supabase官方JS库 -->
-    <script src="https://unpkg.com/@supabase/supabase-js"></script>
-    <!-- 引入我们自己的样式和逻辑 -->
+    <title>温湿度监控平台 - OneNET数据</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- 调试面板 -->
+    <div id="debug-panel" style="
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #2c3e50;
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        z-index: 10000;
+        max-width: 500px;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    ">
+        <h4 style="margin: 0 0 10px 0;">调试信息</h4>
+        <button onclick="runDiagnosis()" style="
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        ">诊断连接问题</button>
+        <div id="debug-output" style="
+            background: #34495e;
+            padding: 10px;
+            border-radius: 4px;
+            min-height: 60px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        ">点击上方按钮开始诊断...</div>
+    </div>
+
     <div class="container">
-        <h1>🌡️ 温湿度实时监控</h1>
+        <h1>🌡️ 温湿度实时监控 (OneNET)</h1>
         <p>数据最后更新于: <span id="lastUpdate">-</span></p>
         
+        <!-- 设备选择器 -->
+        <div class="device-selector">
+            <label for="deviceSelect">选择设备: </label>
+            <select id="deviceSelect">
+                <option value="">请选择设备</option>
+            </select>
+            <button onclick="fetchDeviceList()">刷新设备列表</button>
+            <button onclick="startAutoRefresh(10000)">开始自动刷新(10秒)</button>
+            <button onclick="stopAutoRefresh()">停止自动刷新</button>
+        </div>
+
         <div class="data-container">
             <!-- 温度显示卡片 -->
             <div class="data-card">
@@ -30,14 +75,18 @@
         </div>
 
         <div class="history-section">
-            <h3>最新记录</h3>
+            <h3>数据流信息</h3>
+            <div id="datastreams">
+                <!-- 数据流信息将在这里显示 -->
+            </div>
+            
+            <h3>最新数据记录</h3>
             <table id="dataTable">
                 <thead>
                     <tr>
                         <th>时间</th>
-                        <th>设备ID</th>
-                        <th>温度 (°C)</th>
-                        <th>湿度 (%)</th>
+                        <th>数据流</th>
+                        <th>值</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -47,7 +96,7 @@
         </div>
     </div>
 
-    <!-- 引入我们自己的JavaScript代码 -->
+    <!-- 引入JavaScript代码 -->
     <script src="script.js"></script>
 </body>
 </html>
