@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>温湿度监控平台</title>
+    <!-- 引入Supabase官方JS库 -->
+    <script src="https://unpkg.com/@supabase/supabase-js"></script>
+    <!-- 引入我们自己的样式和逻辑 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🌡️ 温湿度实时监控</h1>
+        <p>数据最后更新于: <span id="lastUpdate">-</span></p>
+        
+        <div class="data-container">
+            <!-- 温度显示卡片 -->
+            <div class="data-card">
+                <h2>温度</h2>
+                <div id="temperatureValue" class="value">--</div>
+                <div class="unit">°C</div>
+            </div>
+            <!-- 湿度显示卡片 -->
+            <div class="data-card">
+                <h2>湿度</h2>
+                <div id="humidityValue" class="value">--</div>
+                <div class="unit">%</div>
+            </div>
+        </div>
+
+        <div class="history-section">
+            <h3>最新记录</h3>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>设备ID</th>
+                        <th>温度 (°C)</th>
+                        <th>湿度 (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 数据会通过JavaScript动态插入到这里 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 引入我们自己的JavaScript代码 -->
+    <script src="script.js"></script>
+</body>
+</html>
