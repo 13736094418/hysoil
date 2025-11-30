@@ -13,28 +13,29 @@
             <p>基于 OneNET 的物联网数据监控</p>
         </header>
 
+        <!-- 控制面板 -->
         <section class="control-panel">
             <div class="card">
                 <h2>🔧 设备控制</h2>
                 <div class="form-group">
-                    <label for="device-selector">选择设备:</label>
-                    <select id="device-selector">
-                        <option value="">请选择设备</option>
-                        <!-- 设备选项将通过JavaScript动态添加 -->
-                    </select>
+                    <label for="device-id-input">设备ID:</label>
+                    <input type="text" id="device-id-input" placeholder="请输入设备ID">
+                    <small>示例: 1234567890</small>
                 </div>
                 <div class="button-group">
-                    <button id="refresh-btn" class="btn btn-primary">🔄 刷新设备列表</button>
-                    <button id="auto-refresh-btn" class="btn btn-secondary">⏱️ 开始自动刷新(10秒)</button>
-                    <button id="stop-refresh-btn" class="btn btn-danger">⏹️ 停止自动刷新</button>
+                    <button id="fetch-data-btn" class="btn btn-primary">📡 获取数据</button>
+                    <button id="auto-refresh-btn" class="btn btn-secondary">⏱️ 自动刷新(30秒)</button>
+                    <button id="stop-refresh-btn" class="btn btn-danger" disabled>⏹️ 停止刷新</button>
+                    <button id="test-connection-btn" class="btn btn-outline">🔍 测试连接</button>
                 </div>
                 <div class="status-info">
-                    <p>数据最后更新于: <span id="update-time">-</span></p>
+                    <p>数据最后更新: <span id="update-time">-</span></p>
                     <p>连接状态: <span id="connection-status">🔴 未连接</span></p>
                 </div>
             </div>
         </section>
 
+        <!-- 数据显示 -->
         <section class="data-display">
             <div class="metrics-grid">
                 <div class="metric-card temperature">
@@ -53,19 +54,49 @@
             </div>
         </section>
 
+        <!-- 调试信息 -->
         <section class="debug-info">
             <div class="card">
-                <h2>🐛 调试信息</h2>
-                <button id="debug-btn" class="btn btn-outline">诊断连接问题</button>
-                <div id="debug-output" class="debug-output"></div>
+                <h2>🐛 调试面板</h2>
+                <div class="debug-controls">
+                    <button id="clear-log-btn" class="btn btn-small">🗑️ 清空日志</button>
+                    <button id="export-log-btn" class="btn btn-small">📥 导出日志</button>
+                </div>
+                <div class="debug-output" id="debug-output">
+                    <div class="log-entry">=== 系统启动 ===</div>
+                    <div class="log-entry">等待用户操作...</div>
+                </div>
             </div>
         </section>
 
+        <!-- 数据流信息 -->
         <section class="data-streams">
             <div class="card">
-                <h2>📊 数据流信息</h2>
-                <div class="streams-list" id="streams-list">
-                    <p>暂无数据流信息</p>
+                <h2>📊 数据流详情</h2>
+                <div class="streams-container">
+                    <div class="stream-item" id="temperature-stream">
+                        <div class="stream-header">
+                            <span class="stream-name">温度 (bat_tem)</span>
+                            <span class="stream-status">--</span>
+                        </div>
+                        <div class="stream-data">
+                            <div>最新值: <span class="stream-value">--</span></div>
+                            <div>更新时间: <span class="stream-time">--</span></div>
+                            <div>数据点数: <span class="stream-count">--</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="stream-item" id="humidity-stream">
+                        <div class="stream-header">
+                            <span class="stream-name">湿度 (Hum)</span>
+                            <span class="stream-status">--</span>
+                        </div>
+                        <div class="stream-data">
+                            <div>最新值: <span class="stream-value">--</span></div>
+                            <div>更新时间: <span class="stream-time">--</span></div>
+                            <div>数据点数: <span class="stream-count">--</span></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
