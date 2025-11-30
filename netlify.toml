@@ -1,0 +1,18 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_ENV = "production"
+
+# 设置重定向，让 /api/* 指向 Netlify 函数
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# 单页应用配置（如果使用前端路由）
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
